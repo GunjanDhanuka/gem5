@@ -51,7 +51,7 @@ flit::flit(int packet_id, int id, int  vc, int vnet, RouteInfo route, int size,
     m_enqueue_time = curTime;
     m_dequeue_time = curTime;
     m_time = curTime;
-    m_packet_id = id;
+    m_packet_id = packet_id;
     m_id = id;
     m_vnet = vnet;
     m_vc = vc;
@@ -122,6 +122,9 @@ flit::print(std::ostream& out) const
     out << "Dest Router=" << m_route.dest_router << " ";
     out << "Set Time=" << m_time << " ";
     out << "Width=" << m_width<< " ";
+    //TODO: print the msg_ptr here and run with RubyNetwork flag
+    out << "Message value = " << *m_msg_ptr;
+    out << "Infected = " << m_msg_ptr->getInfected() << " ";
     out << "]";
 }
 

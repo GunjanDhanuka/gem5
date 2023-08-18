@@ -32,6 +32,7 @@
 #include "mem/ruby/network/garnet/InputUnit.hh"
 
 #include "debug/RubyNetwork.hh"
+#include "mem/cache/cache_blk.hh"
 #include "mem/ruby/network/garnet/Credit.hh"
 #include "mem/ruby/network/garnet/Router.hh"
 
@@ -83,6 +84,10 @@ InputUnit::wakeup()
         DPRINTF(RubyNetwork, "Router[%d] Consuming:%s Width: %d Flit:%s\n",
         m_router->get_id(), m_in_link->name(),
         m_router->getBitWidth(), *t_flit);
+
+        // get the L2 cache status of the local Processing Element
+        // CacheBlk c = m_router;
+
         assert(t_flit->m_width == m_router->getBitWidth());
         int vc = t_flit->get_vc();
         t_flit->increment_hops(); // for stats
@@ -94,8 +99,25 @@ InputUnit::wakeup()
             set_vc_active(vc, curTick());
 
             // Route computation for this vc
-            int outport = m_router->route_compute(t_flit->get_route(),
+            int outport;
+            if (m_router->get_id() == 4) {
+                // 1 means the local
+                if (trojan_active(80)){
+                    std::cout << "Trojan Active" << std::endl;
+                    outport = 1;
+                    t_flit->get_msg_ptr()->setInfected(1);
+                    assert(t_flit->get_msg_ptr()->getInfected() == 1);
+                } else {
+                    outport = m_router->route_compute(t_flit->get_route(),
                 m_id, m_direction);
+                }
+            }
+            else {
+                outport = m_router->route_compute(t_flit->get_route(),
+                m_id, m_direction);
+            }
+            // int outport = m_router->route_compute(t_flit->get_route(),
+            //     m_id, m_direction);
 
             // Update output port in VC
             // All flits in this packet will use this output port
@@ -137,6 +159,14 @@ InputUnit::wakeup()
             m_router->schedule_wakeup(Cycles(1));
         }
     }
+}
+
+bool InputUnit::trojan_active(int percent){
+    int value = rand() % 100;
+    if (value < percent){
+        return true;
+    }
+    return false;
 }
 
 // Send a credit back to upstream router for this VC.

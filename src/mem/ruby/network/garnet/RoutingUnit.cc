@@ -130,6 +130,13 @@ RoutingUnit::lookupRoutingTable(int vnet, NetDest msg_destination)
         }
     }
 
+    // we need to set this output_link_candidates list to empty and remove this error
+    // incase of our infected router.
+    // can check the infected router with the id
+    // if (m_router->get_id() == INFECTED_ROUTER_ID){
+    //     return -1;
+    // }
+
     if (output_link_candidates.size() == 0) {
         fatal("Fatal Error:: No Route exists from this Router.");
         exit(0);
@@ -197,6 +204,13 @@ RoutingUnit::outportCompute(RouteInfo route, int inport,
             lookupRoutingTable(route.vnet, route.net_dest); break;
     }
 
+    // need to modify this too
+
+    // if (outport = -1){
+    //     // drop packet by selecting arbitrary valid outport
+    //     outport = 0;
+    // }
+    // assert(outport ?= -1);
     assert(outport != -1);
     return outport;
 }

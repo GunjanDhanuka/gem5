@@ -464,10 +464,13 @@ Decode::updateStatus()
 void
 Decode::sortInsts()
 {
+    // std::cout << "entered sortinsts\n";
     int insts_from_fetch = fromFetch->size;
+    // std::cout << "insts_from_fetch= " << insts_from_fetch << "\n";
     for (int i = 0; i < insts_from_fetch; ++i) {
         insts[fromFetch->insts[i]->threadNumber].push(fromFetch->insts[i]);
     }
+    // std::cout << "exited sortinsts\n";
 }
 
 void

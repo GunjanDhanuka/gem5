@@ -240,42 +240,54 @@ NetworkInterface::wakeup()
             // credits.
             if (t_flit->get_type() == TAIL_ ||
                 t_flit->get_type() == HEAD_TAIL_) {
-                if (!iPort->messageEnqueuedThisCycle &&
-                    outNode_ptr[vnet]->areNSlotsAvailable(1, curTime)) {
-                    // Space is available. Enqueue to protocol buffer.
-                    outNode_ptr[vnet]->enqueue(t_flit->get_msg_ptr(), curTime,
-                                               cyclesToTicks(Cycles(1)));
-
-                    // Simply send a credit back since we are not buffering
-                    // this flit in the NI
-                    Credit *cFlit = new Credit(t_flit->get_vc(),
-                                               true, curTick());
-                    iPort->sendCredit(cFlit);
-                    // Update stats and delete flit pointer
-                    incrementStats(t_flit);
+                // drop the packet if infected.
+                if (t_flit->get_msg_ptr()->getInfected() == 1){
                     delete t_flit;
                 } else {
-                    // No space available- Place tail flit in stall queue and
-                    // set up a callback for when protocol buffer is dequeued.
-                    // Stat update and flit pointer deletion will occur upon
-                    // unstall.
-                    iPort->m_stall_queue.push_back(t_flit);
-                    m_stall_count[vnet]++;
+                    if (!iPort->messageEnqueuedThisCycle &&
+                        outNode_ptr[vnet]->areNSlotsAvailable(1, curTime)) {
+                        // Space is available. Enqueue to protocol buffer.
+                        outNode_ptr[vnet]->enqueue(t_flit->get_msg_ptr(),
+                        curTime, cyclesToTicks(Cycles(1)));
 
-                    outNode_ptr[vnet]->registerDequeueCallback([this]() {
-                        dequeueCallback(); });
+                        // Simply send a credit back since we are not buffering
+                        // this flit in the NI
+                        Credit *cFlit = new Credit(t_flit->get_vc(),
+                                                true, curTick());
+                        iPort->sendCredit(cFlit);
+                        // Update stats and delete flit pointer
+                        incrementStats(t_flit);
+                        delete t_flit;
+                    } else {
+                        // No space available- Place tail flit in stall queue and
+                        // set up a callback for when protocol buffer is dequeued.
+                        // Stat update and flit pointer deletion will occur upon
+                        // unstall.
+                        iPort->m_stall_queue.push_back(t_flit);
+                        m_stall_count[vnet]++;
+
+                        outNode_ptr[vnet]->registerDequeueCallback([this]() {
+                            dequeueCallback(); });
+                    }
                 }
-            } else {
-                // Non-tail flit. Send back a credit but not VC free signal.
-                Credit *cFlit = new Credit(t_flit->get_vc(), false,
-                                               curTick());
-                // Simply send a credit back since we are not buffering
-                // this flit in the NI
-                iPort->sendCredit(cFlit);
 
-                // Update stats and delete flit pointer.
-                incrementStats(t_flit);
-                delete t_flit;
+            } else {
+                if (t_flit->get_msg_ptr()->getInfected() == 1){
+                    std::cout << "Deleting flit " << t_flit->get_id() << " packet id: " << t_flit->getPacketID() << "\n";
+                    delete t_flit;
+                } else {
+                    // Non-tail flit. Send back a credit but not VC free signal.
+                    Credit *cFlit = new Credit(t_flit->get_vc(), false,
+                                                curTick());
+                    // Simply send a credit back since we are not buffering
+                    // this flit in the NI
+                    iPort->sendCredit(cFlit);
+
+                    // Update stats and delete flit pointer.
+                    incrementStats(t_flit);
+                    delete t_flit;
+                }
+
             }
         }
     }
@@ -447,6 +459,10 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
 
             fl->set_src_delay(curTick() - msg_ptr->getTime());
             niOutVcs[vc].insert(fl);
+
+            // to print the packet id in the RubySlicc output
+            fl->print(std::cout);
+            std::cout << "\n";
         }
 
         m_ni_out_vcs_enqueue_time[vc] = curTick();
@@ -456,6 +472,7 @@ NetworkInterface::flitisizeMessage(MsgPtr msg_ptr, int vnet)
 }
 
 // Looking for a free output vc
+// gd check it
 int
 NetworkInterface::calculateVC(int vnet)
 {
@@ -473,9 +490,9 @@ NetworkInterface::calculateVC(int vnet)
     }
 
     vc_busy_counter[vnet] += 1;
-    panic_if(vc_busy_counter[vnet] > m_deadlock_threshold,
-        "%s: Possible network deadlock in vnet: %d at time: %llu \n",
-        name(), vnet, curTick());
+    // panic_if(vc_busy_counter[vnet] > m_deadlock_threshold,
+    //     "%s: Possible network deadlock in vnet: %d at time: %llu \n",
+    //     name(), vnet, curTick());
 
     return -1;
 }

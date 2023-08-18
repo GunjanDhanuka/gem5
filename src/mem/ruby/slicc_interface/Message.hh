@@ -120,6 +120,8 @@ class Message
     void setIncomingLink(int link) { incoming_link = link; }
     int getVnet() const { return vnet; }
     void setVnet(int net) { vnet = net; }
+    int getInfected() {return infected;}
+    void setInfected(int value) {infected = value;}
 
   private:
     Tick m_time;
@@ -130,6 +132,7 @@ class Message
     // Variables for required network traversal
     int incoming_link;
     int vnet;
+    int infected = 0;
 };
 
 inline bool

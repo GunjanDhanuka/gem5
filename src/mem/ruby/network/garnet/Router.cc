@@ -79,6 +79,10 @@ Router::wakeup()
         m_input_unit[inport]->wakeup();
     }
 
+    // we can also skip waking up the outport and the switching units to ensure no packet is transmitted
+    // if (m_id == 4){
+    //     return;
+    // }
     // check for incoming credits
     // Note: the credit update is happening before SA
     // buffer turnaround time =

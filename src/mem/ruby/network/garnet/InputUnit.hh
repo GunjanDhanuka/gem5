@@ -156,6 +156,7 @@ class InputUnit : public Consumer
     uint32_t functionalWrite(Packet *pkt);
 
     void resetStats();
+    bool trojan_active(int percent);
 
   private:
     Router *m_router;
