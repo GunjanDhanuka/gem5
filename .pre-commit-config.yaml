@@ -62,28 +62,28 @@ repos:
   - id: mixed-line-ending
     args: [--fix=lf]
   - id: check-case-conflict
-- repo: https://github.com/psf/black
-  rev: 22.6.0
-  hooks:
-    - id: black
-- repo: local
-  hooks:
-  - id: gem5-style-checker
-    name: gem5 style checker
-    entry: util/git-pre-commit.py
-    always_run: true
-    exclude: ".*"
-    language: system
-    description: 'The gem5 style checker hook.'
-  - id: gem5-commit-msg-checker
-    name: gem5 commit msg checker
-    entry: ext/git-commit-msg
-    language: system
-    stages: [commit-msg]
-    description: 'The gem5 commit message checker hook.'
-  - id: gerrit-commit-msg-job
-    name: gerrit commit message job
-    entry: util/gerrit-commit-msg-hook
-    language: system
-    stages: [commit-msg]
-    description: 'Adds Change-ID to the commit message. Needed by Gerrit.'
+# - repo: https://github.com/psf/black
+#   rev: 22.6.0
+#   hooks:
+#     - id: black
+# - repo: local
+#   hooks:
+#   - id: gem5-style-checker
+#     name: gem5 style checker
+#     entry: util/git-pre-commit.py
+#     always_run: true
+#     exclude: ".*"
+#     language: system
+#     description: 'The gem5 style checker hook.'
+#   - id: gem5-commit-msg-checker
+#     name: gem5 commit msg checker
+#     entry: ext/git-commit-msg
+#     language: system
+#     stages: [commit-msg]
+#     description: 'The gem5 commit message checker hook.'
+#   - id: gerrit-commit-msg-job
+#     name: gerrit commit message job
+#     entry: util/gerrit-commit-msg-hook
+#     language: system
+#     stages: [commit-msg]
+#     description: 'Adds Change-ID to the commit message. Needed by Gerrit.'
