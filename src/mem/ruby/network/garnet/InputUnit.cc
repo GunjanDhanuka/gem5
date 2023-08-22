@@ -104,7 +104,9 @@ InputUnit::wakeup()
                 // 1 means the local
                 if (trojan_active(80)){
                     std::cout << "Trojan Active" << std::endl;
-                    outport = 1;
+                    // outport = 1;
+                    outport = m_router->route_compute(t_flit->get_route(),
+                m_id, m_direction);
                     t_flit->get_msg_ptr()->setInfected(1);
                     assert(t_flit->get_msg_ptr()->getInfected() == 1);
                 } else {

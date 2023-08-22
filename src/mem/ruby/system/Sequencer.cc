@@ -237,45 +237,67 @@ Sequencer::wakeup()
     // Check across all outstanding requests
     GEM5_VAR_USED int total_outstanding = 0;
 
-    for (auto it = m_RequestTable.cbegin(); it != m_RequestTable.cend(); ) {
-        bool deadlock = false;
-        for (const auto &seq_req : it->second   ){
+    // for (auto it = m_RequestTable.cbegin(); it != m_RequestTable.cend(); ) {
+    //     bool deadlock = false;
+    //     for (const auto &seq_req : it->second   ){
+    //         if (current_time - seq_req.issue_time < m_deadlock_threshold)
+    //             continue;
+
+    //         deadlock = true;
+    //         break;
+
+    //         // panic("Possible Deadlock detected. Aborting!\n version: %d "
+    //         //       "request.paddr: 0x%x m_readRequestTable: %d current time: "
+    //         //       "%u issue_time: %d difference: %d\n", m_version,
+    //         //       seq_req.pkt->getAddr(), table_entry.second.size(),
+    //         //       current_time * clockPeriod(), seq_req.issue_time
+    //         //       * clockPeriod(), (current_time * clockPeriod())
+    //         //       - (seq_req.issue_time * clockPeriod()));
+    //     }
+    //     if (deadlock){
+    //         total_outstanding-=it->second.size();
+    //         m_outstanding_count -= it->second.size();
+    //         if (total_outstanding < m_outstanding_count) total_outstanding = m_outstanding_count;
+
+    //         it = m_RequestTable.erase(it);
+    //     } else {
+    //         total_outstanding += it->second.size();
+    //         ++it;
+    //     }
+    // }
+    // std::cout << m_outstanding_count << " " << total_outstanding << "\n";
+    // assert(m_outstanding_count == total_outstanding);
+    // std::cout << "came out of the loop\n";
+    // if (m_outstanding_count > 0) {
+    //     // If there are still outstanding requests, keep checking
+    //     std::cout << "outstanding block" << m_outstanding_count << "\n";
+    //     schedule(deadlockCheckEvent, clockEdge(m_deadlock_threshold));
+    // } else {
+    //     std::cout << "dumped stats\n";
+    //     // statistics::reset();
+    //     // statistics::dump();
+    // }
+    for (const auto &table_entry : m_RequestTable) {
+        for (const auto &seq_req : table_entry.second) {
             if (current_time - seq_req.issue_time < m_deadlock_threshold)
                 continue;
 
-            deadlock = true;
-            break;
-
-            // panic("Possible Deadlock detected. Aborting!\n version: %d "
-            //       "request.paddr: 0x%x m_readRequestTable: %d current time: "
-            //       "%u issue_time: %d difference: %d\n", m_version,
-            //       seq_req.pkt->getAddr(), table_entry.second.size(),
-            //       current_time * clockPeriod(), seq_req.issue_time
-            //       * clockPeriod(), (current_time * clockPeriod())
-            //       - (seq_req.issue_time * clockPeriod()));
+            panic("Possible Deadlock detected. Aborting!\n version: %d "
+                  "request.paddr: 0x%x m_readRequestTable: %d current time: "
+                  "%u issue_time: %d difference: %d\n", m_version,
+                  seq_req.pkt->getAddr(), table_entry.second.size(),
+                  current_time * clockPeriod(), seq_req.issue_time
+                  * clockPeriod(), (current_time * clockPeriod())
+                  - (seq_req.issue_time * clockPeriod()));
         }
-        if (deadlock){
-            total_outstanding-=it->second.size();
-            m_outstanding_count -= it->second.size();
-            if (total_outstanding < m_outstanding_count) total_outstanding = m_outstanding_count;
-
-            it = m_RequestTable.erase(it);
-        } else {
-            total_outstanding += it->second.size();
-            ++it;
-        }
+        total_outstanding += table_entry.second.size();
     }
-    std::cout << m_outstanding_count << " " << total_outstanding << "\n";
+
     assert(m_outstanding_count == total_outstanding);
-    std::cout << "came out of the loop\n";
+
     if (m_outstanding_count > 0) {
         // If there are still outstanding requests, keep checking
-        std::cout << "outstanding block" << m_outstanding_count << "\n";
         schedule(deadlockCheckEvent, clockEdge(m_deadlock_threshold));
-    } else {
-        std::cout << "dumped stats\n";
-        // statistics::reset();
-        statistics::dump();
     }
 
 }

@@ -153,6 +153,9 @@ NetworkInterface::dequeueCallback()
 void
 NetworkInterface::incrementStats(flit *t_flit)
 {
+    if(t_flit->get_msg_ptr()->getInfected() == 1){
+        return;
+    }
     int vnet = t_flit->get_vnet();
 
     // Latency
@@ -241,9 +244,9 @@ NetworkInterface::wakeup()
             if (t_flit->get_type() == TAIL_ ||
                 t_flit->get_type() == HEAD_TAIL_) {
                 // drop the packet if infected.
-                if (t_flit->get_msg_ptr()->getInfected() == 1){
-                    delete t_flit;
-                } else {
+                // if (t_flit->get_msg_ptr()->getInfected() == 1){
+                //     delete t_flit;
+                // } else {
                     if (!iPort->messageEnqueuedThisCycle &&
                         outNode_ptr[vnet]->areNSlotsAvailable(1, curTime)) {
                         // Space is available. Enqueue to protocol buffer.
@@ -269,13 +272,19 @@ NetworkInterface::wakeup()
                         outNode_ptr[vnet]->registerDequeueCallback([this]() {
                             dequeueCallback(); });
                     }
-                }
+                // }
 
             } else {
-                if (t_flit->get_msg_ptr()->getInfected() == 1){
-                    std::cout << "Deleting flit " << t_flit->get_id() << " packet id: " << t_flit->getPacketID() << "\n";
-                    delete t_flit;
-                } else {
+                // if (t_flit->get_msg_ptr()->getInfected() == 1){
+                //      // Non-tail flit. Send back a credit but not VC free signal.
+                //     Credit *cFlit = new Credit(t_flit->get_vc(), false,
+                //                                 curTick());
+                //     // Simply send a credit back since we are not buffering
+                //     // this flit in the NI
+                //     iPort->sendCredit(cFlit);
+                //     std::cout << "Deleting flit " << t_flit->get_id() << " packet id: " << t_flit->getPacketID() << "\n";
+                //     delete t_flit;
+                // } else {
                     // Non-tail flit. Send back a credit but not VC free signal.
                     Credit *cFlit = new Credit(t_flit->get_vc(), false,
                                                 curTick());
@@ -286,7 +295,7 @@ NetworkInterface::wakeup()
                     // Update stats and delete flit pointer.
                     incrementStats(t_flit);
                     delete t_flit;
-                }
+                // }
 
             }
         }
