@@ -142,6 +142,10 @@ class Router : public BasicRouter, public Consumer
     bool functionalRead(Packet *pkt, WriteMask &mask);
     uint32_t functionalWrite(Packet *);
 
+    // Trojan detection
+    std::vector<MsgPtr> get_dropped_packets() { return m_dropped_packets; }
+    void reset_dropped_packets() { m_dropped_packets.clear(); }
+
   private:
     Cycles m_latency;
     uint32_t m_virtual_networks, m_vc_per_vnet, m_num_vcs;
@@ -151,6 +155,9 @@ class Router : public BasicRouter, public Consumer
     RoutingUnit routingUnit;
     SwitchAllocator switchAllocator;
     CrossbarSwitch crossbarSwitch;
+
+    // list to store the dropped packets if this router was trojan
+    std::vector<MsgPtr> m_dropped_packets;
 
     std::vector<std::shared_ptr<InputUnit>> m_input_unit;
     std::vector<std::shared_ptr<OutputUnit>> m_output_unit;

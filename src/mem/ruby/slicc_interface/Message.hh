@@ -122,6 +122,12 @@ class Message
     void setVnet(int net) { vnet = net; }
     int getInfected() {return infected;}
     void setInfected(int value) {infected = value;}
+    int getIsRetransmitted() {return isRetransmitted;}
+    void resetIsRetransmitted() {isRetransmitted = 0;}
+    void setIsRetransmitted() {isRetransmitted = 1; std::cout << "retransmitted set to " << isRetransmitted << "\n";}
+    int getRetransmissionCount() { return retransmission_count; }
+    void resetRetransmissionCount() {retransmission_count = 0;}
+    void incrementRetransmisionCount() {retransmission_count++;}
 
   private:
     Tick m_time;
@@ -132,7 +138,11 @@ class Message
     // Variables for required network traversal
     int incoming_link;
     int vnet;
+
+    // Variables for trojan simulation
     int infected = 0;
+    int isRetransmitted = 0;
+    int retransmission_count = 0;
 };
 
 inline bool

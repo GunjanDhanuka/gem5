@@ -41,6 +41,20 @@
 #include "mem/ruby/network/garnet/Credit.hh"
 #include "mem/ruby/network/garnet/flitBuffer.hh"
 #include "mem/ruby/slicc_interface/Message.hh"
+#include "bits/stdc++.h"
+
+struct PacketBufferEntry{
+    gem5::ruby::MsgPtr msg_ptr;
+    int vnet;
+    gem5::Tick received_time;
+};
+
+static std::map<int, std::queue<PacketBufferEntry>> packet_buffer;
+
+static std::set<gem5::ruby::MsgPtr> infected_msgs;
+
+int retransmitted = 0;
+int retransmitted_again_trojan = 0;
 
 namespace gem5
 {
@@ -50,6 +64,9 @@ namespace ruby
 
 namespace garnet
 {
+
+// create a map with key as source NI and value as queue of MsgPtr sent from that source
+// static std::map<int, std::set<MsgPtr>> msg_queue;
 
 NetworkInterface::NetworkInterface(const Params &p)
   : ClockedObject(p), Consumer(this), m_id(p.id),
@@ -153,6 +170,8 @@ NetworkInterface::dequeueCallback()
 void
 NetworkInterface::incrementStats(flit *t_flit)
 {
+    // if t_flit's message pointer was infected, take the source time to be the original time from the map
+
     int vnet = t_flit->get_vnet();
 
     // Latency
@@ -197,6 +216,9 @@ NetworkInterface::wakeup()
     DPRINTF(RubyNetwork, "Network Interface %d connected to router:%s "
             "woke up. Period: %ld\n", m_id, oss.str(), clockPeriod());
 
+    int pkt_inj = m_net_ptr->get_packets_injected();
+    int pkt_rec = m_net_ptr->get_packets_received();
+
     assert(curTick() == clockEdge());
     MsgPtr msg_ptr;
     Tick curTime = clockEdge();
@@ -219,6 +241,7 @@ NetworkInterface::wakeup()
 
     scheduleOutputLink();
 
+
     // Check if there are flits stalling a virtual channel. Track if a
     // message is enqueued to restrict ejection to one message per cycle.
     checkStallQueue();
@@ -229,7 +252,7 @@ NetworkInterface::wakeup()
         NetworkLink *inNetLink = iPort->inNetLink();
         if (inNetLink->isReady(curTick())) {
             flit *t_flit = inNetLink->consumeLink();
-            DPRINTF(RubyNetwork, "Recieved flit:%s\n", *t_flit);
+            DPRINTF(RubyNetwork, "Received flit:%s\n", *t_flit);
             assert(t_flit->m_width == iPort->bitWidth());
 
             int vnet = t_flit->get_vnet();
@@ -240,13 +263,33 @@ NetworkInterface::wakeup()
             // credits.
             if (t_flit->get_type() == TAIL_ ||
                 t_flit->get_type() == HEAD_TAIL_) {
+                MsgPtr temp_ptr = t_flit->get_msg_ptr();
+
                 // drop the packet if infected.
                 if (t_flit->get_msg_ptr()->getInfected() == 1){
+                    PacketBufferEntry temp = {
+                        t_flit->get_msg_ptr(),
+                        t_flit->get_vnet(),
+                        curTick()
+                    };
+                    // if(infected_msgs.find(temp_ptr) == infected_msgs.end())
+                    int src_ni = t_flit->get_route().src_ni;
+                    packet_buffer[src_ni].push(temp);
+                    assert(temp.msg_ptr->getInfected() == 1);
+                    std::cout << "Received tail flit, packet id: " << t_flit->getPacketID() << " at NIC in " << get_router_id(t_flit->get_vnet()) << "; Src router: " << t_flit->get_route().src_router << "\n";
+                    Credit *cFlit = new Credit(t_flit->get_vc(), true, curTick());
+                    iPort->sendCredit(cFlit);
+
+                    // incrementStats(t_flit);
                     delete t_flit;
                 } else {
                     if (!iPort->messageEnqueuedThisCycle &&
                         outNode_ptr[vnet]->areNSlotsAvailable(1, curTime)) {
                         // Space is available. Enqueue to protocol buffer.
+                        // if(temp_ptr->getIsRetransmitted()){
+                        //     temp_ptr->resetIsRetransmitted();
+                        // }
+
                         outNode_ptr[vnet]->enqueue(t_flit->get_msg_ptr(),
                         curTime, cyclesToTicks(Cycles(1)));
 
@@ -272,10 +315,10 @@ NetworkInterface::wakeup()
                 }
 
             } else {
-                if (t_flit->get_msg_ptr()->getInfected() == 1){
-                    std::cout << "Deleting flit " << t_flit->get_id() << " packet id: " << t_flit->getPacketID() << "\n";
-                    delete t_flit;
-                } else {
+                // if (t_flit->get_msg_ptr()->getInfected() == 1){
+                //     std::cout << "Deleting flit " << t_flit->get_id() << " packet id: " << t_flit->getPacketID() << "\n";
+                //     delete t_flit;
+                // } else {
                     // Non-tail flit. Send back a credit but not VC free signal.
                     Credit *cFlit = new Credit(t_flit->get_vc(), false,
                                                 curTick());
@@ -286,9 +329,42 @@ NetworkInterface::wakeup()
                     // Update stats and delete flit pointer.
                     incrementStats(t_flit);
                     delete t_flit;
-                }
+                // }
 
             }
+        }
+    }
+
+    while(!packet_buffer[m_id].empty()){
+        PacketBufferEntry temp = packet_buffer[m_id].front();
+        std::cout << "Temp infected value=" << temp.msg_ptr->getInfected() << "\n";
+        
+        if(infected_msgs.find(temp.msg_ptr) != infected_msgs.end()){
+            std::cout << "msg ptr already existing." << "\n";
+        } else {
+            infected_msgs.insert(temp.msg_ptr);
+        }
+
+        temp.msg_ptr->setInfected(0);
+
+        if(flitisizeMessage(temp.msg_ptr, temp.vnet)){
+            std::cout << "retransmitted packet at NIC " << m_id << "\n";
+            retransmitted++;
+            temp.msg_ptr->incrementRetransmisionCount();
+            
+            
+            temp.msg_ptr->setIsRetransmitted();
+            assert(packet_buffer[m_id].front().msg_ptr->getIsRetransmitted() == 1);
+            
+            std::cout << "retransmitted " << retransmitted  << std::endl;
+            int msg_retransmissions = temp.msg_ptr->getRetransmissionCount();
+            if(msg_retransmissions > 1){
+                std::cout << "has multiple retransmissions = " << msg_retransmissions << std::endl;
+            }
+            packet_buffer[m_id].pop();
+        } else {
+            //std::cout << "premature break\n";
+            break;
         }
     }
 
@@ -321,7 +397,13 @@ NetworkInterface::wakeup()
                 scheduleEventAbsolute(clockEdge(Cycles(1)));
         }
     }
-    checkReschedule();
+
+    if(pkt_inj % 1000 == 0)
+    {
+        std::cout << "packets inj = " << pkt_inj << " and pkt recv = " << pkt_rec << std::endl;
+    }
+    // checkReschedule();
+    scheduleEvent(Cycles(1));
 }
 
 void
@@ -544,10 +626,10 @@ NetworkInterface::scheduleOutputPort(OutputPort *oPort)
                // Scheduling the flit
                scheduleFlit(t_flit);
 
-               if (t_flit->get_type() == TAIL_ ||
-                  t_flit->get_type() == HEAD_TAIL_) {
-                   m_ni_out_vcs_enqueue_time[vc] = Tick(INFINITE_);
-               }
+            if (t_flit->get_type() == TAIL_ ||
+                    t_flit->get_type() == HEAD_TAIL_) {
+                    m_ni_out_vcs_enqueue_time[vc] = Tick(INFINITE_);
+            }
 
                // Done with this port, continue to schedule
                // other ports

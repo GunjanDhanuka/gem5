@@ -35,6 +35,7 @@
 #include "mem/cache/cache_blk.hh"
 #include "mem/ruby/network/garnet/Credit.hh"
 #include "mem/ruby/network/garnet/Router.hh"
+#include <cstdlib>
 
 namespace gem5
 {
@@ -74,6 +75,15 @@ InputUnit::InputUnit(int id, PortDirection direction, Router *router)
  *
  */
 
+int trojan_counter = 0;
+int total = 0;
+int retransmitted_again_trojan = 0;
+int retransmitted_here = 0;
+int total_thru_20 = 0;
+int trojan_thru_20 = 0;
+int total_thru_39 = 0;
+int trojan_thru_39 = 0;
+
 void
 InputUnit::wakeup()
 {
@@ -84,9 +94,6 @@ InputUnit::wakeup()
         DPRINTF(RubyNetwork, "Router[%d] Consuming:%s Width: %d Flit:%s\n",
         m_router->get_id(), m_in_link->name(),
         m_router->getBitWidth(), *t_flit);
-
-        // get the L2 cache status of the local Processing Element
-        // CacheBlk c = m_router;
 
         assert(t_flit->m_width == m_router->getBitWidth());
         int vc = t_flit->get_vc();
@@ -100,24 +107,56 @@ InputUnit::wakeup()
 
             // Route computation for this vc
             int outport;
-            if (m_router->get_id() == 4) {
-                // 1 means the local
-                if (trojan_active(80)){
+            total++;
+            if(t_flit->get_msg_ptr()->getIsRetransmitted() == 1){
+                std::cout << "Retransmitted packet id " << t_flit->getPacketID() << " arrived at router " << m_router->get_id() << "\n";
+            }
+            const char* trojanProbEnvVar = std::getenv("TROJAN_PROB");
+            int trojanProb = 0;
+            if (trojanProbEnvVar != nullptr) {
+                trojanProb = std::atoi(trojanProbEnvVar); // Convert to integer
+                std::cout << "TROJAN_PROB environment variable value: " << trojanProb << std::endl;
+            } else {
+                std::cout << "TROJAN_PROB environment variable is not set." << std::endl;
+            }
+            if (m_router->get_id() == 20 || m_router->get_id() == 39) {
+                if(m_router->get_id() == 20){
+                    total_thru_20++;
+                } else {
+                    total_thru_39++;
+                }
+                if(trojan_active(trojanProb)){
                     std::cout << "Trojan Active" << std::endl;
+                    trojan_counter++;
+                    if(m_router->get_id() == 20){
+                        trojan_thru_20++;
+                    } else {
+                        trojan_thru_39++;
+                    }
+                    
+                    // since this trojan is active, the packet has to be dropped and not forwarded
                     outport = 1;
+
                     t_flit->get_msg_ptr()->setInfected(1);
                     assert(t_flit->get_msg_ptr()->getInfected() == 1);
+                    std::cout << "Packet id " << t_flit->getPacketID() << " should be dropped." << std::endl;
                 } else {
-                    outport = m_router->route_compute(t_flit->get_route(),
-                m_id, m_direction);
+                    outport = m_router->route_compute(t_flit->get_route(), m_id, m_direction); 
+                }          
+                
+                if(t_flit->get_msg_ptr()->getIsRetransmitted() == 1){
+                    retransmitted_here++;
+                    if(t_flit->get_msg_ptr()->getInfected() == 1){
+                        retransmitted_again_trojan++;   
+                    }
                 }
-            }
-            else {
-                outport = m_router->route_compute(t_flit->get_route(),
-                m_id, m_direction);
-            }
-            // int outport = m_router->route_compute(t_flit->get_route(),
-            //     m_id, m_direction);
+                std::cout << "retransmitted arrived here " << retransmitted_here << " and infected again " << retransmitted_again_trojan << "\n";
+                std::cout << "total " << total << " and infected " << trojan_counter << "\n";
+                std::cout << "total_thru_20 " << total_thru_20 << " and trojan_thru_20 " << trojan_thru_20 << "\n";
+                std::cout << "total_thru_39 " << total_thru_39 << " and trojan_thru_39 " << trojan_thru_39 << "\n";
+            } else {
+                outport = m_router->route_compute(t_flit->get_route(), m_id, m_direction);          
+            }            
 
             // Update output port in VC
             // All flits in this packet will use this output port

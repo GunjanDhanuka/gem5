@@ -123,7 +123,7 @@ flit::print(std::ostream& out) const
     out << "Set Time=" << m_time << " ";
     out << "Width=" << m_width<< " ";
     //TODO: print the msg_ptr here and run with RubyNetwork flag
-    out << "Message value = " << *m_msg_ptr;
+    // out << "Message value = " << *m_msg_ptr;
     out << "Infected = " << m_msg_ptr->getInfected() << " ";
     out << "]";
 }

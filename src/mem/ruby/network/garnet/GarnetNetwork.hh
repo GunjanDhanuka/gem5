@@ -157,6 +157,15 @@ class GarnetNetwork : public Network
     void update_traffic_distribution(RouteInfo route);
     int getNextPacketID() { return m_next_packet_id++; }
 
+    int get_packets_injected(){
+        return m_packets_injected.total();
+    }
+
+    int get_packets_received(){
+        return m_packets_received.total();
+    }
+
+
   protected:
     // Configuration
     int m_num_rows;

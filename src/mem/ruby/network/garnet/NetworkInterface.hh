@@ -84,6 +84,8 @@ class NetworkInterface : public ClockedObject, public Consumer
 
     void scheduleFlit(flit *t_flit);
 
+    bool trojan_active(int percent);
+
     int get_router_id(int vnet)
     {
         OutputPort *oPort = getOutportForVnet(vnet);

@@ -67,6 +67,9 @@ from common.Caches import *
 from common.cpu2000 import *
 from common.cpu2017 import *
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def get_processes(args):
     """Interprets provided args and returns a list of processes"""
